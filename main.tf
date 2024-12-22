@@ -97,13 +97,12 @@ resource "aws_security_group" "secgrp-web-server" {
 
 }
 
-resource "aws_instance" "nginx-server" {
+resource "aws_instance" "web-server" {
   ami                         = "ami-0866a3c8686eaeeba"
   associate_public_ip_address = true
   instance_type               = "t2.micro"
   subnet_id                   = aws_subnet.public-subnet-terraform.id
   vpc_security_group_ids      = [aws_security_group.secgrp-web-server.id]
-
 
   root_block_device {
     delete_on_termination = true
@@ -111,9 +110,13 @@ resource "aws_instance" "nginx-server" {
     volume_type           = "gp3"
   }
 
- user_data = <<-EOF
+  user_data = <<-EOF
               #!/bin/bash
               sudo apt-get update -y
+              sudo apt-get install -y apache2
+              sudo systemctl start apache2
+              sudo systemctl enable apache2
+              echo "Hello from Terraform" | sudo tee /var/www/html/index.html
               EOF
 
   tags = merge(local.common_tags, {
