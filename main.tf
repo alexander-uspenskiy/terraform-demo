@@ -72,6 +72,39 @@ resource "aws_route_table_association" "public-2" {
   subnet_id      = aws_subnet.public-subnet-terraform-2.id
   route_table_id = aws_route_table.terraform-rtb.id
 }
+resource "aws_eip" "terraform-nat-eip" {
+  domain = "vpc"
+}
+
+resource "aws_route_table" "terraform-private-rtb" {
+  vpc_id = aws_vpc.terraform-vpc.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.terraform-nat-gateway.id
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "terraform-private-rtb"
+  })
+}
+
+resource "aws_route_table_association" "private-association" {
+  subnet_id      = aws_subnet.private-subnet-terraform.id
+  route_table_id = aws_route_table.terraform-private-rtb.id
+}
+
+resource "aws_nat_gateway" "terraform-nat-gateway" {
+  allocation_id = aws_eip.terraform-nat-eip.id
+  subnet_id     = aws_subnet.public-subnet-terraform-1.id
+
+  tags = merge(local.common_tags, {
+    Name = "terraform-nat-gateway"
+  })
+}
+
+
+
 
 resource "aws_security_group" "secgrp-alb" {
   description = "Security group for ALB"
@@ -125,8 +158,8 @@ resource "aws_security_group" "secgrp-web-server" {
   })
 }
 
-resource "aws_lb" "terraform_alb" {
-  name               = "terraform_alb"
+resource "aws_lb" "terraform-alb" {
+  name               = "terraform-alb"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.secgrp-alb.id]
@@ -138,12 +171,13 @@ resource "aws_lb" "terraform_alb" {
   enable_deletion_protection = false
 
   tags = merge(local.common_tags, {
-    Name = "terraform_alb"
+    Name = "terraform-alb"
   })
 }
 
-resource "aws_lb_target_group" "terraform_alb_tg" {
-  name     = "terraform_alb_tg"
+
+resource "aws_lb_target_group" "terraform-alb-tg" {
+  name     = "terraform-alb-tg"
   port     = 80
   protocol = "HTTP"
   vpc_id   = aws_vpc.terraform-vpc.id
@@ -158,23 +192,25 @@ resource "aws_lb_target_group" "terraform_alb_tg" {
   }
 
   tags = merge(local.common_tags, {
-    Name = "terraform_alb_tg"
+    Name = "terraform-alb-tg"
   })
 }
 
-resource "aws_lb_listener" "app_lb_listener" {
-  load_balancer_arn = aws_lb.app_lb.arn
+resource "aws_lb_listener" "app-lb-listener" {
+  load_balancer_arn = aws_lb.terraform-alb.arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.app_tg.arn
+    target_group_arn = aws_lb_target_group.terraform-alb-tg.arn
   }
 }
 
+
+
 resource "aws_instance" "web-server-1" {
-  ami                         = "ami-095a8f574cb0ac0d0"
+  ami                         = "ami-01816d07b1128cd2d"
   associate_public_ip_address = false
   instance_type               = "t2.micro"
   subnet_id                   = aws_subnet.private-subnet-terraform.id
@@ -187,14 +223,12 @@ resource "aws_instance" "web-server-1" {
   }
 
   user_data = <<-EOF
-              #!/bin/bash
-              sudo apt-get update -y
-              sudo apt-get install -y apache2
-              sudo systemctl start apache2
-              sudo systemctl enable apache2
-              PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
-              PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
-              echo "<html><body><h1>Hello from Terraform web server 1</h1><p>Public IP: $PUBLIC_IP</p><p>Private IP: $PRIVATE_IP</p></body></html>" | sudo tee /var/www/html/index.html
+             #!/bin/bash
+              sudo yum update -y
+              sudo yum install -y nginx
+              sudo systemctl start nginx
+              sudo systemctl enable nginx
+              echo "<html><body><h1>Hello from teraform web server 1!</h1><p>Public IP: $PUBLIC_IP</p><p>Private IP: $PRIVATE_IP</p></body></html>" | sudo tee /usr/share/nginx/html/index.html
               EOF
 
   tags = merge(local.common_tags, {
@@ -205,11 +239,11 @@ resource "aws_instance" "web-server-1" {
     create_before_destroy = true
   }
 
-  depends_on = [aws_lb.app_lb, aws_lb_target_group.app_tg]
+  depends_on = [aws_lb.terraform-alb, aws_lb_target_group.terraform-alb-tg]
 }
 
 resource "aws_instance" "web-server-2" {
-  ami                         = "ami-095a8f574cb0ac0d0"
+  ami                         = "ami-01816d07b1128cd2d"
   associate_public_ip_address = false
   instance_type               = "t2.micro"
   subnet_id                   = aws_subnet.private-subnet-terraform.id
@@ -221,15 +255,13 @@ resource "aws_instance" "web-server-2" {
     volume_type           = "gp3"
   }
 
-  user_data = <<-EOF
-              #!/bin/bash
-              sudo apt-get update -y
-              sudo apt-get install -y apache2
-              sudo systemctl start apache2
-              sudo systemctl enable apache2
-              PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
-              PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
-              echo "<html><body><h1>Hello from Terraform web server 2</h1><p>Public IP: $PUBLIC_IP</p><p>Private IP: $PRIVATE_IP</p></body></html>" | sudo tee /var/www/html/index.html
+user_data = <<-EOF
+             #!/bin/bash
+              sudo yum update -y
+              sudo yum install -y nginx
+              sudo systemctl start nginx
+              sudo systemctl enable nginx
+              echo "<html><body><h1>Hello from teraform web server 2!</h1><p>Public IP: $PUBLIC_IP</p><p>Private IP: $PRIVATE_IP</p></body></html>" | sudo tee /usr/share/nginx/html/index.html
               EOF
 
   tags = merge(local.common_tags, {
@@ -240,11 +272,11 @@ resource "aws_instance" "web-server-2" {
     create_before_destroy = true
   }
 
-  depends_on = [aws_lb.app_lb, aws_lb_target_group.app_tg]
+  depends_on = [aws_lb.terraform-alb, aws_lb_target_group.terraform-alb-tg]
 }
 
 resource "aws_lb_target_group_attachment" "web_server_1_attachment" {
-  target_group_arn = aws_lb_target_group.app_tg.arn
+  target_group_arn = aws_lb_target_group.terraform-alb-tg.arn
   target_id        = aws_instance.web-server-1.id
   port             = 80
 
@@ -252,7 +284,7 @@ resource "aws_lb_target_group_attachment" "web_server_1_attachment" {
 }
 
 resource "aws_lb_target_group_attachment" "web_server_2_attachment" {
-  target_group_arn = aws_lb_target_group.app_tg.arn
+  target_group_arn = aws_lb_target_group.terraform-alb-tg.arn
   target_id        = aws_instance.web-server-2.id
   port             = 80
 
@@ -271,5 +303,5 @@ output "web_server_2_private_ip" {
 
 output "alb_dns_name" {
   description = "The DNS name of the ALB"
-  value       = aws_lb.app_lb.dns_name
+  value       = aws_lb.terraform-alb.dns_name
 }
