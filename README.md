@@ -6,7 +6,7 @@ Demo Progect - how to create a high performance and secure web server architectu
 
 ## Description
 
-Two servers with Ngnix web server in private subnet with Application Load Balancer, NAT (for egress trafic) and Internet Gateway - ready to use architecture
+The main.ts script creates two servers with Ngnix web server in private subnet with Application Load Balancer, NAT (for egress trafic) and Internet Gateway - ready to use architecture
 
 ## Architecture Diagram
 
@@ -70,6 +70,24 @@ Two servers with Ngnix web server in private subnet with Application Load Balanc
     ```sh
     terraform destroy
     ```
+## How to execute
+
+1. Create a Free Tier Account in AWS (https://aws.amazon.com/free/)
+
+2. Setup CLI
+
+3. Install Terraform
+
+4. Apply configuration
+
+5. See output (for example alb_dns_name = "terraform-alb-1525092884.us-east-1.elb.amazonaws.com")
+
+6. Browse to your alb_dns_name url (don't forgrt to use **http://**)
+
+7. Refresh the page several time to make sure ALB routes you to web-server-1 or web-server-2
+
+8. Do terraform destroy to releadse resources and stay on free tier credit.
+
 
 ## Resources
 
