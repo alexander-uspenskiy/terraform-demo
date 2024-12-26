@@ -2,7 +2,7 @@
 
 ## Scope
 
-Demo Progect - how to create a high performance and secure web server architecture in AWS with a Terraform script 
+Demo Project - how to create a high performance and secure web server architecture in AWS with a Terraform script 
 
 ## Description
 
